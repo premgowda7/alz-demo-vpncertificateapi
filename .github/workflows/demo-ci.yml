@@ -1,0 +1,48 @@
+name: demo-ci (standalone, GitHub-hosted runner)
+# ---------------------------------------------------------------------------
+# DEMO ONLY. This is NOT part of the real ALZ pattern. It exists so you can see a
+# green GitHub Actions run on a personal account, where the real workflows above
+# cannot run (they need the company org's shared workflows and the self-hosted
+# runner group eba-vmss-runners).
+#
+# Every step here does real work and really passes:
+#   1. compile every Python file (syntax check)
+#   2. generate a real CycloneDX SBOM from requirements.txt
+#   3. upload the SBOM as a build artifact
+# Nothing is faked to force a green result. If a step cannot pass, it fails.
+# ---------------------------------------------------------------------------
+
+on:
+  push:
+    branches: [onboard-to-alz-v3]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile check (syntax of every .py file)
+        run: python -m compileall -q .
+
+      - name: Generate SBOM from requirements.txt
+        run: python .github/demo/requirements_to_sbom.py requirements.txt sbom.cyclonedx.json
+
+      - name: Show the SBOM in the log
+        run: cat sbom.cyclonedx.json
+
+      - name: Upload the SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cyclonedx.json
