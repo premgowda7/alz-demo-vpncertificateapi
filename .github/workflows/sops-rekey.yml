@@ -1,0 +1,59 @@
+﻿name: SOPS | add or remove recipient + re-key
+
+# Canonical caller. Copy to <service repo>/.github/workflows/sops-rekey.yml (same on every service repo).
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "add = grant access, remove = revoke access"
+        required: true
+        type: choice
+        options: [add, remove]
+        default: add
+      public_age_key:
+        description: "age PUBLIC key (age1...). Never a private key."
+        required: true
+        type: string
+      target_path:
+        description: "Encrypted file, e.g. iac/in/dev/values.enc.json"
+        required: true
+        type: string
+      recipient_label:
+        description: "Who the key belongs to (SESA id) -- goes in the branch and commit"
+        required: true
+        type: string
+      base_ref:
+        description: "Branch the re-key branch is cut from and the PR targets"
+        required: true
+        type: string
+        default: onboard-to-alz-v3
+      scope:
+        description: "config = every file the .sops.yaml governs (recommended); file = target only"
+        required: false
+        type: choice
+        options: [config, file]
+        default: config
+      allow_drop:
+        description: "Allow dropping OTHER recipients the files carry but .sops.yaml lacks. Read the dry-run first."
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: "Report only; change nothing"
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  rekey:
+    uses: EcoStruxure-Building-Activate/DevSecOps-Automation/.github/workflows/service-sops-rekey.yml@onboard-to-alz-v3
+    with:
+      action:          ${{ inputs.action }}
+      public_age_key:  ${{ inputs.public_age_key }}
+      target_path:     ${{ inputs.target_path }}
+      recipient_label: ${{ inputs.recipient_label }}
+      base_ref:        ${{ inputs.base_ref }}
+      scope:           ${{ inputs.scope }}
+      allow_drop:      ${{ inputs.allow_drop }}
+      dry_run:         ${{ inputs.dry_run }}
+    secrets: inherit

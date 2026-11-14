@@ -1,0 +1,44 @@
+﻿name: IaC
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: "Target stack"
+        required: true
+        type: choice
+        options: [in, eu]
+        default: in
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options: [dev, qa, ft, pprd, prd]
+        default: dev
+      mode:
+        description: "plan = read-only, apply = create/update, destroy = remove"
+        required: true
+        type: choice
+        options: [plan, apply, destroy]
+        default: plan
+      allow_destroy:
+        description: "Let a plan that destroys or replaces resources continue. Leave off unless the removal is deliberate."
+        required: false
+        type: boolean
+        default: false
+      platform_ref:
+        description: "Branch of DevSecOps-Automation holding the platform IaC"
+        required: true
+        type: string
+        default: onboard-to-alz-v3
+
+jobs:
+  iac:
+    uses: EcoStruxure-Building-Activate/DevSecOps-Automation/.github/workflows/service-iac.yml@onboard-to-alz-v3
+    with:
+      stack:        ${{ inputs.stack }}
+      environment:  ${{ inputs.environment }}
+      mode:         ${{ inputs.mode }}
+      allow_destroy: ${{ inputs.allow_destroy }}
+      platform_ref: ${{ inputs.platform_ref }}
+    secrets: inherit

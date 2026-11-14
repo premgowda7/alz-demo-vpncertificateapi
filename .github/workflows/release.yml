@@ -1,0 +1,84 @@
+name: release
+# ---------------------------------------------------------------------------
+# REAL ALZ pattern, copied from the cloud repos (e.g. cloud-core-syncdatarealtime).
+# Builds + pushes the image, writes the tag into the Helm values file, and rolls
+# out to AKS via the shared reusable workflow
+#   DevSecOps-Automation/.github/workflows/service-release.yml@onboard-to-alz-v3  (company org).
+#
+# NOTE: this file only works inside the EcoStruxure-Building-Activate org and on
+# the self-hosted runner group eba-vmss-runners. On a personal account it cannot
+# run. The real push trigger is COMMENTED OUT for this demo so it does not fail
+# on push; keep only workflow_dispatch here. In the org, restore the push block.
+# Values to confirm with the platform team before real use: image_repo, namespace,
+# release_name. A Helm chart (./helm) must also exist (see DEMO_NOTES.md).
+# ---------------------------------------------------------------------------
+
+on:
+  # --- restore this block in the company org (removed for the personal-account demo) ---
+  # push:
+  #   branches: [onboard-to-alz-v3]
+  #   paths:
+  #     - '.github/workflows/release.yml'
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: "Target stack"
+        required: true
+        type: choice
+        options: [in, eu]
+        default: in
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options: [dev, qa, ft, pprd, prd]
+        default: dev
+      build:
+        description: Build and publish a new image
+        required: false
+        type: boolean
+        default: true
+      update_values:
+        description: Write the tag into image.tag in the values file
+        required: false
+        type: boolean
+        default: true
+      commit_values:
+        description: Commit the values change back to the branch
+        required: false
+        type: boolean
+        default: true
+      rollout:
+        description: Apply the chart with helm
+        required: false
+        type: boolean
+        default: false
+      image_tag:
+        description: Tag to release when build is off
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: EcoStruxure-Building-Activate/DevSecOps-Automation/.github/workflows/service-release.yml@onboard-to-alz-v3
+    with:
+      service_name: vpn-certificate-api
+      image_repo: vpn-certificate-api-dev        # confirm with platform team
+      image_env: dev
+      dockerfile: ./Dockerfile
+      run_target: ''
+      stack: ${{ inputs.stack || 'in' }}
+      environment: ${{ inputs.environment || 'dev' }}
+      release_name: vpn-certificate-api          # confirm with platform team
+      namespace: vpncertificateapi               # confirm with platform team
+      image_tag_path: image.tag
+      image_tag: ${{ inputs.image_tag || '' }}
+      build:         ${{ github.event_name == 'workflow_dispatch' && inputs.build }}
+      update_values: ${{ github.event_name == 'workflow_dispatch' && inputs.update_values }}
+      commit_values: ${{ github.event_name == 'workflow_dispatch' && inputs.commit_values }}
+      rollout:       ${{ github.event_name == 'workflow_dispatch' && inputs.rollout }}
+    secrets: inherit

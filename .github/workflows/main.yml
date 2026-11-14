@@ -1,0 +1,72 @@
+name: CI Pipeline
+# ---------------------------------------------------------------------------
+# REAL ALZ pattern, copied from the cloud repos (e.g. cloud-core-utils).
+# This caller only declares triggers + app identity. All build / scan / SBOM /
+# image-push logic lives in the shared reusable workflow
+#   em-eba-inh-devops-cicd-templates/.github/workflows/ci-bdba.yml  (company org).
+# SBOM metadata lives in .github/sbom-config.json (already present in this repo).
+#
+# NOTE: this file only works inside the EcoStruxure-Building-Activate org. On a
+# personal GitHub account the "uses:" below cannot be found, so do NOT click
+# "Run workflow" on it here. The push/pull_request triggers target main/release/
+# hotfix, so they do not fire on the onboard-to-alz-v3 branch. See DEMO_NOTES.md.
+# ---------------------------------------------------------------------------
+
+on:
+  push:
+    branches: [main, 'release/**', 'hotfix/**', main_aws]
+    tags: ['v*.*.*']
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches: [main, 'release/**', 'hotfix/**', main_aws]
+  workflow_dispatch:
+    inputs:
+      build-enabled:
+        description: Run the Build & Push JFrog job
+        required: false
+        default: true
+        type: boolean
+      coverity-enabled:
+        description: Run SonarQube + Coverity
+        required: false
+        default: false
+        type: boolean
+      bdba-scan-enabled:
+        description: Run BDBA scan
+        required: false
+        default: false
+        type: boolean
+      sbom-enabled:
+        description: Run SBOM generate & submit
+        required: false
+        default: false
+        type: boolean
+      qgate-exception:
+        description: Bypass Coverity/BDBA quality gates
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  ci:
+    name: CI - Build / Scan / Push
+    uses: EcoStruxure-Building-Activate/em-eba-inh-devops-cicd-templates/.github/workflows/ci-bdba.yml@main
+    with:
+      # ── App identity ─────────────────────────────────────────────────────
+      app-name:        vpn-certificate-api
+      dockerfile:      ./Dockerfile
+      context:         .
+      helm-chart-path: ./helm
+      language:        python
+
+      # ── BDBA / SBOM metadata ─────────────────────────────────────────────
+      bdba-group-id:   "1373"   # this repo's real BDBA group (from ci-cdxgen-bdba.yml)
+      # SBOM metadata lives in .github/sbom-config.json
+
+      # ── Stage flags (honoured on workflow_dispatch; push/PR use ci-bdba routing) ──
+      build-enabled:      ${{ github.event_name != 'workflow_dispatch' || inputs.build-enabled }}
+      coverity-enabled:   ${{ inputs.coverity-enabled || false }}
+      bdba-scan-enabled:  ${{ inputs.bdba-scan-enabled || false }}
+      sbom-enabled:       ${{ inputs.sbom-enabled || false }}
+      qgate-exception:    ${{ github.event_name != 'workflow_dispatch' && true || inputs.qgate-exception }}
+    secrets: inherit
