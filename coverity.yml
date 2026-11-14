@@ -1,0 +1,537 @@
+commit:
+  connect:
+    url:  https://coverity.se.com # Coverity Connect server URL
+    scm: git
+
+capture:
+  build:
+    build-command: sh -c 'python3 -m compileall -q . || true; find . -name "*.sh" -exec sh -n {} + || true'
+
+analyze:
+  jobs:
+    max: 8     # Max parallel jobs for analysis
+  location: local
+  # To enable custom banned function checkers, use the configuration below. Download the required JSON file from the GSL GitHub repository:https://github.schneider-electric.com/GSL/Coverity/tree/release/coverity-2024.12.0/gsl-checkers-recommendations/banned-functions-config   
+  parse-warnings:
+    enabled: true
+  sigma:
+    enable-check-set:
+    - all
+  checkers:
+    all: true
+    android-security: true
+    webapp-security:
+      enabled: true
+    checker-config:
+      ALLOC_FREE_MISMATCH:
+        enabled: true
+      ANDROID_CAPABILITY_LEAK:
+        enabled: true
+      ANGULAR_ELEMENT_REFERENCE:
+        enabled: true
+      ANGULAR_EXPRESSION_INJECTION:
+        enabled: true
+      ANGULAR_SCE_DISABLED:
+        enabled: true
+      ANONYMOUS_DB_CONNECTION:
+        enabled: true
+      ARRAY_VS_SINGLETON:
+        enabled: true
+      ASPNET_MVC_VERSION_HEADER:
+        enabled: true
+      ASSERT_SIDE_EFFECT:
+        enabled: true
+      ASSIGN_NOT_RETURNING_STAR_THIS:
+        enabled: true
+      ATOMICITY:
+        enabled: true
+      ATTRIBUTE_NAME_CONFLICT:
+        enabled: true
+      AUDIT.SPECULATIVE_EXECUTION_DATA_LEAK:
+        enabled: true
+      AUTO_CAUSES_COPY:
+        enabled: true
+      BAD_ALLOC_ARITHMETIC:
+        enabled: true
+      BAD_ALLOC_STRLEN:
+        enabled: true
+      BAD_CERT_VERIFICATION:
+        enabled: true
+      BAD_CHECK_OF_WAIT_COND:
+        enabled: true
+      BAD_COMPARE:
+        enabled: true
+      BAD_EQ:
+        enabled: true
+      BAD_EQ_TYPES:
+        enabled: true
+      BAD_FREE:
+        enabled: true
+      BAD_LOCK_OBJECT:
+        enabled: true
+      BAD_OVERRIDE:
+        enabled: true
+      BAD_SHIFT:
+        enabled: true
+      BAD_SIZEOF:
+        enabled: true
+      BUFFER_SIZE:
+        enabled: true
+      CALL_SUPER:
+        enabled: true
+      CHAR_IO:
+        enabled: true
+      CHECKED_RETURN:
+        enabled: true
+      CHROOT:
+        enabled: true
+      COM.ADDROF_LEAK:
+        enabled: true
+      COM.BAD_FREE:
+        enabled: true
+      COM.BSTR.ALLOC:
+        enabled: true
+      COM.BSTR.BAD_COMPARE:
+        enabled: true
+      COM.BSTR.CONV:
+        enabled: true
+      COM.BSTR.NE_NON_BSTR:
+        enabled: true
+      CONFIG.ANDROID_GRADLE_OBFUSCATION_NOT_ENABLED:
+        enabled: true
+      CONFIG.ASP_VIEWSTATE_MAC:
+        enabled: true
+      CONFIG.BEEGO_CSRF_PROTECTION_DISABLED:
+        enabled: true
+      CONFIG.COOKIE_SIGNING_DISABLED:
+        enabled: true
+      CONFIG.DEAD_AUTHORIZATION_RULE:
+        enabled: true
+      CONFIG.DYNAMIC_DATA_HTML_COMMENT:
+        enabled: true
+      CONFIG.ENABLED_DEBUG_MODE:
+        enabled: true
+      CONFIG.ENABLED_TRACE_MODE:
+        enabled: true
+      CONFIG.HANA_XS_PREVENT_XSRF_DISABLED:
+        enabled: true
+      CONFIG.HARDCODED_CREDENTIALS_AUDIT:
+        enabled: true
+      CONFIG.HARDCODED_TOKEN:
+        enabled: true
+      CONFIG.UNSAFE_SESSION_TIMEOUT:
+        enabled: true
+      CONFIG.VUE_ROUTER_PARAMS_EXPOSED_TO_PROPS:
+        enabled: true
+      CONSTANT_EXPRESSION_RESULT:
+        enabled: true
+      COOKIE_INJECTION:
+        enabled: true
+      COOKIE_SERIALIZER_CONFIG:
+        enabled: true
+      COPY_INSTEAD_OF_MOVE:
+        enabled: true
+      COPY_PASTE_ERROR:
+        enabled: true
+      COPY_WITHOUT_ASSIGN:
+        enabled: true
+      CORS_MISCONFIGURATION:
+        enabled: true
+      CORS_MISCONFIGURATION_AUDIT:
+        enabled: true
+      CSRF:
+        enabled: true
+      CSS_INJECTION:
+        enabled: true
+      CTOR_DTOR_LEAK:
+        enabled: true
+      DC.DANGEROUS:
+        enabled: true
+      DC.DEADLOCK:
+        enabled: true
+      DC.DEBUGAPI:
+        enabled: true
+      DC.PREDICTABLE_KEY_PASSWORD:
+        enabled: true
+      DC.STREAM_BUFFER:
+        enabled: true
+      DC.STRING_BUFFER:
+        enabled: true
+      DC.WEAK_CRYPTO:
+        enabled: true
+      DEADCODE:
+        enabled: true
+      DELETE_ARRAY:
+        enabled: true
+      DELETE_VOID:
+        enabled: true
+      DISTRUSTED_DATA_DESERIALIZATION:
+        enabled: true
+      DIVIDE_BY_ZERO:
+        enabled: true
+      DNS_PREFETCHING:
+        enabled: true
+      DOM_XSS:
+        enabled: true
+      DYNAMIC_OBJECT_ATTRIBUTES:
+        enabled: true
+      EL_INJECTION:
+        enabled: true
+      ENUM_AS_BOOLEAN:
+        enabled: true
+      EVALUATION_ORDER:
+        enabled: true
+      EXPLICIT_THIS_EXPECTED:
+        enabled: true
+      EXPOSED_NON_CONST_STATIC:
+        enabled: true
+      FLOATING_POINT_EQUALITY:
+        enabled: true
+      FORMAT_STRING_INJECTION:
+        enabled: true
+      FORWARD_NULL:
+        enabled: true
+      GLOBAL_INIT_ORDER:
+        enabled: true
+      GUARDED_BY_VIOLATION:
+        enabled: true
+      HARDCODED_CREDENTIALS:
+        enabled: true
+      HEADER_INJECTION:
+        enabled: true
+      HFA:
+        enabled: true
+      HIBERNATE_BAD_HASHCODE:
+        enabled: true
+      IDENTICAL_BRANCHES:
+        enabled: true
+      IDENTIFIER_TYPO:
+        enabled: true
+      IMPLICIT_INTENT:
+        enabled: true
+      INCOMPATIBLE_CAST:
+        enabled: true
+      INEFFECTIVE_MOVE:
+        enabled: true
+      INEFFICIENT_RESERVE:
+        enabled: true
+      INFINITE_LOOP:
+        enabled: true
+      INSECURE_COMMUNICATION:
+        enabled: true
+      INSECURE_COOKIE:
+        enabled: true
+      INSECURE_CSP:
+        enabled: true
+      INSECURE_DIRECT_OBJECT_REFERENCE:
+        enabled: true
+      INSECURE_FILE_PERMISSIONS:
+        enabled: true
+      INSECURE_NETWORK_BIND:
+        enabled: true
+      INSECURE_RANDOM:
+        enabled: true
+      INSECURE_SALT:
+        enabled: true
+      INSUFFICIENT_LOGGING:
+        enabled: true
+      INTEGER_OVERFLOW:
+        enabled: true
+      INVALIDATE_ITERATOR:
+        enabled: true
+      JAVA_CODE_INJECTION:
+        enabled: true
+      JCR_INJECTION:
+        enabled: true
+      JSONWEBTOKEN_UNTRUSTED_DECODE:
+        enabled: true
+      JSP_DYNAMIC_INCLUDE:
+        enabled: true
+      JSP_SQL_INJECTION:
+        enabled: true
+      LDAP_INJECTION:
+        enabled: true
+      LDAP_NOT_CONSTANT:
+        enabled: true
+      LOCK:
+        enabled: true
+      LOCK_EVASION:
+        enabled: true
+      LOCK_INVERSION:
+        enabled: true
+      LOG_INJECTION:
+        enabled: true
+      MASS_ASSIGNMENT:
+        enabled: true
+      MISMATCHED_ITERATOR:
+        enabled: true
+      MISSING_AUTHZ:
+        enabled: true
+      MISSING_BREAK:
+        enabled: true
+      MISSING_COMMA:
+        enabled: true
+      MISSING_COPY_OR_ASSIGN:
+        enabled: true
+      MISSING_IFRAME_SANDBOX:
+        enabled: true
+      MISSING_LOCK:
+        enabled: true
+      MISSING_MOVE_ASSIGNMENT:
+        enabled: true
+      MISSING_PERMISSION_FOR_BROADCAST:
+        enabled: true
+      MISSING_RESTORE:
+        enabled: true
+      MISSING_RETURN:
+        enabled: true
+      MISSING_THROW:
+        enabled: true
+      MIXED_ENUMS:
+        enabled: true
+      MOBILE_ID_MISUSE:
+        enabled: true
+      MULTIPLE_INIT_SMART_PTRS:
+        enabled: true
+      NEGATIVE_RETURNS:
+        enabled: true
+      NESTING_INDENT_MISMATCH:
+        enabled: true
+      NON_STATIC_GUARDING_STATIC:
+        enabled: true
+      NOSQL_QUERY_INJECTION:
+        enabled: true
+      NO_EFFECT:
+        enabled: true
+      NULL_FIELD:
+        enabled: true
+      NULL_RETURNS:
+        enabled: true
+      ODR_VIOLATION:
+        enabled: true
+      OGNL_INJECTION:
+        enabled: true
+      OPEN_ARGS:
+        enabled: true
+      OPEN_REDIRECT:
+        enabled: true
+      ORDER_REVERSAL:
+        enabled: true
+      ORM_LOAD_NULL_CHECK:
+        enabled: true
+      ORM_LOST_UPDATE:
+        enabled: true
+      ORM_UNNECESSARY_GET:
+        enabled: true
+      OS_CMD_INJECTION:
+        enabled: true
+      OVERFLOW_BEFORE_WIDEN:
+        enabled: true
+      OVERLAPPING_COPY:
+        enabled: true
+      OVERLY_BROAD_EXCEPTION:
+        enabled: true
+      OVERRUN:
+        enabled: true
+      PARSE_ERROR:
+        enabled: true
+      PASS_BY_VALUE:
+        enabled: true
+      PATH_MANIPULATION:
+        enabled: true
+      POINTER_NONDETERMINISM:
+        enabled: true
+      PRECEDENCE_ERROR:
+        enabled: true
+      PREDICTABLE_RANDOM_SEED:
+        enabled: true
+      PRINTF_ARGS:
+        enabled: true
+      PROPERTY_MIXUP:
+        enabled: true
+      RAILS_DEFAULT_ROUTES:
+        enabled: true
+      RAILS_MISSING_FILTER_ACTION:
+        enabled: true
+      READLINK:
+        enabled: true
+      REGEX_CONFUSION:
+        enabled: true
+      REGEX_INJECTION:
+        enabled: true
+      REGEX_MISSING_ANCHOR:
+        enabled: true
+      RESOURCE_LEAK:
+        enabled: true
+      RETURN_LOCAL:
+        enabled: true
+      REVERSE_INULL:
+        enabled: true
+      REVERSE_NEGATIVE:
+        enabled: true
+      REVERSE_OVERRUN:
+        enabled: true
+      RISKY_CRYPTO:
+        enabled: true
+      RUBY_VULNERABLE_LIBRARY:
+        enabled: true
+      RULE_OF_ZERO_THREE_FIVE:
+        enabled: true
+      SCRIPT_CODE_INJECTION:
+        enabled: true
+      SEALED_JAR_ESCAPE:
+        enabled: true
+      SECURE_TEMP:
+        enabled: true
+      SELF_ASSIGN:
+        enabled: true
+      SENSITIVE_DATA_LEAK:
+        enabled: true
+      SERVLET_ATOMICITY:
+        enabled: true
+      SESSIONSTORAGE_MANIPULATION:
+        enabled: true
+      SESSION_FIXATION:
+        enabled: true
+      SESSION_MANIPULATION:
+        enabled: true
+      SIGN_EXTENSION:
+        enabled: true
+      SIZEOF_MISMATCH:
+        enabled: true
+      SLEEP:
+        enabled: true
+      SOCKET_ACCEPT_ALL_ORIGINS:
+        enabled: true
+      SQLI:
+        enabled: true
+      SQL_NOT_CONSTANT:
+        enabled: true
+      STACK_USE:
+        enabled: true
+      STATIC_API_KEY:
+        enabled: true
+      STRAY_SEMICOLON:
+        enabled: true
+      STREAM_FORMAT_STATE:
+        enabled: true
+      STRICT_TRANSPORT_SECURITY:
+        enabled: true
+      STRING_NULL:
+        enabled: true
+      STRING_OVERFLOW:
+        enabled: true
+      STRING_SIZE:
+        enabled: true
+      SWAPPED_ARGUMENTS:
+        enabled: true
+      TAINTED_ENVIRONMENT_WITH_EXECUTION:
+        enabled: true
+      TAINTED_SCALAR:
+        enabled: true
+      TAINTED_STRING:
+        enabled: true
+      TAINT_ASSERT:
+        enabled: true
+      TEMPLATE_INJECTION:
+        enabled: true
+      TOCTOU:
+        enabled: true
+      TRUST_BOUNDARY_VIOLATION:
+        enabled: true
+      UNCAUGHT_EXCEPT:
+        enabled: true
+      UNCHECKED_ORIGIN:
+        enabled: true
+      UNENCRYPTED_SENSITIVE_DATA:
+        enabled: true
+      UNESCAPED_HTML:
+        enabled: true
+      UNEXPECTED_CONTROL_FLOW:
+        enabled: true
+      UNINIT:
+        enabled: true
+      UNINIT_CTOR:
+        enabled: true
+      UNINIT_NONNULL:
+        enabled: true
+      UNINTENDED_GLOBAL:
+        enabled: true
+      UNINTENDED_INTEGER_DIVISION:
+        enabled: true
+      UNKNOWN_LANGUAGE_INJECTION:
+        enabled: true
+      UNLESS_CASE_SENSITIVE_ROUTE_MATCHING:
+        enabled: true
+      UNLOCKED_ACCESS:
+        enabled: true
+      UNLOGGED_SECURITY_EXCEPTION:
+        enabled: true
+      UNREACHABLE:
+        enabled: true
+      UNRESTRICTED_ACCESS_TO_FILE:
+        enabled: true
+      UNRESTRICTED_DISPATCH:
+        enabled: true
+      UNSAFE_BASIC_AUTH:
+        enabled: true
+      UNSAFE_BUFFER_METHOD:
+        enabled: true
+      UNSAFE_DESERIALIZATION:
+        enabled: true
+      UNSAFE_FUNCTIONALITY:
+        enabled: true
+      UNSAFE_JNI:
+        enabled: true
+      UNSAFE_NAMED_QUERY:
+        enabled: true
+      UNSAFE_REFLECTION:
+        enabled: true
+      UNSAFE_SESSION_SETTING:
+        enabled: true
+      UNSAFE_XML_PARSE_CONFIG:
+        enabled: true
+      UNUSED_VALUE:
+        enabled: true
+      URL_MANIPULATION:
+        enabled: true
+      USELESS_CALL:
+        enabled: true
+      USER_POINTER:
+        enabled: true
+      USE_AFTER_FREE:
+        enabled: true
+      USE_AFTER_MOVE:
+        enabled: true
+      VARARGS:
+        enabled: true
+      VCALL_IN_CTOR_DTOR:
+        enabled: true
+      VIRTUAL_DTOR:
+        enabled: true
+      VOLATILE_ATOMICITY:
+        enabled: true
+      WEAK_GUARD:
+        enabled: true
+      WEAK_PASSWORD_HASH:
+        enabled: true
+      WEAK_URL_SANITIZATION:
+        enabled: true
+      WRAPPER_ESCAPE:
+        enabled: true
+      WRITE_CONST_FIELD:
+        enabled: true
+      WRONG_METHOD:
+        enabled: true
+      XML_EXTERNAL_ENTITY:
+        enabled: true
+      XML_INJECTION:
+        enabled: true
+      XPATH_INJECTION:
+        enabled: true
+      XSS:
+        enabled: true
+      Y2K38_SAFETY:
+        enabled: true
+  trust:
+    all: false

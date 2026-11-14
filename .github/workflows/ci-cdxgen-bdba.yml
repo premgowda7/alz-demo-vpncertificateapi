@@ -1,0 +1,46 @@
+name: CI-DevSecOPS
+
+on:
+  push:
+    branches: [main, 'release/**', 'hotfix/**']
+    tags: ['v*.*.*']
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches: [main, 'release/**', 'hotfix/**']
+  workflow_dispatch:
+    inputs:
+      coverity-enabled:
+        description: Run SonarQube + Coverity
+        required: false
+        default: false
+        type: boolean
+      bdba-scan-enabled:
+        description: Run cdxgen + BDBA scan
+        required: false
+        default: false
+        type: boolean
+      sbom-enabled:
+        description: Run SBOM generate & submit
+        required: false
+        default: false
+        type: boolean
+      qgate-exception:
+        description: Bypass Coverity/BDBA quality gates
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  ci:
+    uses: EcoStruxure-Building-Activate/em-eba-inh-devops-cicd-templates/.github/workflows/ci-cdxgen-bdba.yml@main
+    with:
+      language: auto
+      allow-empty-bom: true
+      bdba-group-id: '1373'
+      coverity-enabled: ${{ inputs.coverity-enabled || false }}
+      bdba-scan-enabled: ${{ inputs.bdba-scan-enabled || false }}
+      sbom-enabled: ${{ inputs.sbom-enabled || false }}
+      coverity-stream-prefix: >-
+        ${{ github.event_name == 'pull_request' && (startsWith(github.base_ref, 'release/') && 'release' || github.base_ref == 'main' && 'main' || github.base_ref == 'github_migration_poc' && 'main') || (startsWith(github.ref_name, 'release/') && 'release' || github.ref_name == 'main' && 'main' || github.ref_name == 'github_migration_poc' && 'main') || '' }}
+      qgate-exception: ${{ github.event_name != 'workflow_dispatch' && true || inputs.qgate-exception }}
+    secrets: inherit

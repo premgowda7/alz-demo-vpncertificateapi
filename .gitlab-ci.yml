@@ -1,0 +1,332 @@
+include:
+  - project: 'Security/coverity-ci-templates'
+    ref: main
+    file: '/templates/coverity-base.yaml'
+
+stages:
+  - sonarqube
+  - coverity
+  - .pre
+  - semgrep
+  - bandit
+  - dependencycheck
+  - cyclonedx-sbom
+
+### defining variables 
+variables:
+  DOCKER_DRIVER: overlay2
+  DEFECTDOJO_SONARQUBE_SINCELEAKPERIOD: "false"
+  DEFECTDOJO_SONARQUBE_NOSECURITYHOTSPOT: "true"
+  DEFECTDOJO_SONARQUBE_ALLBUGS: "false"
+  DEFECTDOJO_TIMEZONE: "Asia/Kolkata"
+  DEFECTDOJO_ENGAGEMENT_PERIOD: 7
+  DEFECTDOJO_ENGAGEMENT_STATUS: "Not Started"
+  DEFECTDOJO_ENGAGEMENT_BUILD_SERVER: "null"
+  DEFECTDOJO_ENGAGEMENT_SOURCE_CODE_MANAGEMENT_SERVER: "null"
+  DEFECTDOJO_ENGAGEMENT_ORCHESTRATION_ENGINE: "null"
+  DEFECTDOJO_ENGAGEMENT_DEDUPLICATION_ON_ENGAGEMENT: "false"
+  DEFECTDOJO_ENGAGEMENT_THREAT_MODEL: "true"
+  DEFECTDOJO_ENGAGEMENT_API_TEST: "true"
+  DEFECTDOJO_ENGAGEMENT_PEN_TEST: "true"
+  DEFECTDOJO_ENGAGEMENT_CHECK_LIST: "true"
+  DEFECTDOJO_NOT_ON_MASTER: "false"
+  DEFECTDOJO_SCAN_MINIMUM_SEVERITY: "Info"
+  DEFECTDOJO_SCAN_ACTIVE: "true"
+  DEFECTDOJO_SCAN_VERIFIED: "true"
+  DEFECTDOJO_SCAN_CLOSE_OLD_FINDINGS: "true"
+  DEFECTDOJO_SCAN_PUSH_TO_JIRA: "false"
+  DEFECTDOJO_SCAN_ENVIRONMENT: "Default"
+  DEFECTDOJO_ANCHORE_DISABLE: "false"
+  DEFECTDOJO_URL: ${_DEFECTDOJO_URL}
+  DEFECTDOJO_TOKEN: ${_DEFECTDOJO_API_KEY}
+  ## define  variables  for each project 
+  DEFECTDOJO_PRODUCTID: ${_DEFECTDOJO_PRODUCTID}
+  SBOM_URL: "${_SBOM_URL}"
+  SBOM_KEY: "${CI_JOB_TOKEN}"
+  SBOM_PROJECT: "${PROJECT}"
+
+sonarqube-check:
+  stage: sonarqube
+  image: 
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script: 
+    - sonar-scanner
+  allow_failure: true
+  rules:
+  # Scan mainline (default) branches and report all findings.
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  - if: '$CI_COMMIT_MESSAGE =~ /sonarqube/i'
+    allow_failure: true
+
+
+## create new engagement for each job for record
+defectdojo_create_engagement:
+  stage: .pre
+  image: alpine
+  variables:
+    GIT_STRATEGY: none
+  allow_failure: true
+  before_script:
+    - apk add curl jq coreutils
+    - TODAY=`date +%Y-%m-%d`
+    - ENDDAY=$(date -d "+${DEFECTDOJO_ENGAGEMENT_PERIOD} days" +%Y-%m-%d)
+  script:
+    - |
+        ENGAGEMENTID=`curl --fail --location --request POST "${DEFECTDOJO_URL}/engagements/"   --header "Authorization: Token ${DEFECTDOJO_TOKEN}"   --header 'Content-Type: application/json'     --data-raw "{
+                  \"tags\": [\"${CI_COMMIT_REF_NAME}\"],
+                  \"name\": \"#${CI_PIPELINE_ID}\",
+                  \"description\": \"\",
+                  \"version\": \"\",
+                  \"first_contacted\": \"${TODAY}\",
+                  \"target_start\": \"${TODAY}\",
+                  \"target_end\": \"${ENDDAY}\",
+                  \"reason\": \"string\",
+                  \"tracker\": \"${CI_PROJECT_URL}/-/issues\",
+                  \"threat_model\": \"${DEFECTDOJO_ENGAGEMENT_THREAT_MODEL}\",
+                  \"api_test\": \"${DEFECTDOJO_ENGAGEMENT_API_TEST}\",
+                  \"pen_test\": \"${DEFECTDOJO_ENGAGEMENT_PEN_TEST}\",
+                  \"check_list\": \"${DEFECTDOJO_ENGAGEMENT_CHECK_LIST}\",
+                  \"status\": \"${DEFECTDOJO_ENGAGEMENT_STATUS}\",
+                  \"engagement_type\": \"CI/CD\",
+                  \"build_id\": \"${CI_PIPELINE_ID}\",
+                  \"commit_hash\": \"${CI_COMMIT_SHORT_SHA}\",
+                  \"branch_tag\": \"${CI_COMMIT_REF_NAME}\",
+                  \"deduplication_on_engagement\": \"${DEFECTDOJO_ENGAGEMENT_DEDUPLICATION_ON_ENGAGEMENT}\",
+                  \"product\": \"${DEFECTDOJO_PRODUCTID}\",
+                  \"source_code_management_uri\": \"${CI_PROJECT_URL}/-/tree/${CI_COMMIT_REF_NAME}\",
+                  \"build_server\": ${DEFECTDOJO_ENGAGEMENT_BUILD_SERVER},
+                  \"source_code_management_server\": ${DEFECTDOJO_ENGAGEMENT_SOURCE_CODE_MANAGEMENT_SERVER},
+                  \"orchestration_engine\": ${DEFECTDOJO_ENGAGEMENT_ORCHESTRATION_ENGINE}
+                }" | jq -r '.id'`
+    - echo "DEFECTDOJO_ENGAGEMENTID=${ENGAGEMENTID}" >> defectdojo.env
+    - cat defectdojo.env
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /defectdojo/i'
+      allow_failure: true
+    - if: '$CI_COMMIT_MESSAGE =~ /merge branch/i'
+      allow_failure: true
+  artifacts:
+    reports:
+      dotenv: defectdojo.env
+
+coverity-scan:
+  stage: coverity
+  image: ubuntu:22.04
+  artifacts:
+    when: always
+    paths:
+    - .bridge/
+    exclude:
+      - .bridge/**/idir/**
+      - .bridge/**/intermediate/**
+      - .bridge/**/emit/**
+    expire_in: 1 week
+  before_script:
+    - echo "$COVERITY_SERVER_IP $COVERITY_SERVER_HOSTNAME" >> /etc/hosts
+    - apt-get update && apt-get install -y curl unzip ca-certificates
+    - echo "$ZEN_CA_PUBLIC_CERT_B64" | base64 -d > /usr/local/share/ca-certificates/zenatix-ca.crt
+    - update-ca-certificates
+  allow_failure: true
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == 'merge_request_event')
+      variables:
+        BRIDGE_COVERITY_CONNECT_STREAM_NAME: $CI_PROJECT_NAME-$CI_COMMIT_BRANCH
+        #BRIDGE_COVERITY_CONNECT_POLICY_VIEW: 'Outstanding Issues'
+    
+    - if: '$CI_COMMIT_MESSAGE =~ /coverity/i'
+      variables:
+        BRIDGE_COVERITY_CONNECT_STREAM_NAME: $CI_PROJECT_NAME-$CI_COMMIT_BRANCH
+        #BRIDGE_COVERITY_CONNECT_POLICY_VIEW: 'Outstanding Issues'
+  tags:
+    - CS
+  extends: .run-black-duck-tools
+
+semgrep:
+  # A Docker image with Semgrep installed.
+  image: returntocorp/semgrep
+  stage: semgrep
+  needs:
+    - job: defectdojo_create_engagement
+      artifacts: true
+  variables:
+    # Add the rules that Semgrep uses by setting the SEMGREP_RULES environment variable.
+    SEMGREP_RULES: p/default # See more at semgrep.dev/explore.
+
+    # Upload findings to GitLab SAST Dashboard:
+    SEMGREP_GITLAB_JSON: "1"
+
+    DEFECTDOJO_ENGAGEMENTID: ${ENGAGEMENTID}
+
+  # Other optional settings in the `variables` block:
+
+  # Run the "semgrep ci" command on the command line of the docker image and send findings
+  # to GitLab SAST.
+  before_script: 
+    # - semgrep ci --gitlab-sast > gl-sast-report.json || true
+    - semgrep ci --json --output semgrep-findings.json || true
+    - semgrep ci --sarif > semgrep-findings.sarif || true
+  script:
+      - apk add tzdata
+      - apk add jq
+      - apk add curl 
+      - "curl -X POST ''${DEFECTDOJO_URL}'/import-scan/' -H 'accept: application/json' -H 'Content-Type: multipart/form-data' --header 'Authorization: Token '${DEFECTDOJO_TOKEN}'' -F 'minimum_severity=Info' -F 'active=true' -F 'verified=true' -F 'scan_type=Semgrep JSON Report' -F 'product_name='${_DEFECTDOJO_PRODUCT_NAME}'' -F 'engagement_name='#${CI_PIPELINE_ID}'' -F 'engagement='${DEFECTDOJO_ENGAGEMENTID}'' -F 'close_old_findings='${DEFECTDOJO_SCAN_CLOSE_OLD_FINDINGS}'' -F 'file=@semgrep-findings.json;type=application/json' -F 'close_old_findings_product_scope='${DEFECTDOJO_SCAN_CLOSE_OLD_FINDINGS}'' -F 'push_to_jira=false' -F 'create_finding_groups_for_all_findings=true'"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /defectdojo/i'
+      allow_failure: true
+    - if: '$CI_COMMIT_MESSAGE =~ /merge branch/i'
+      allow_failure: true
+  artifacts:
+    # reports:
+    #   sast: gl-sast-report.json
+    paths:
+      # - gl-sast-report.json
+      - semgrep-findings.json
+      - semgrep-findings.sarif
+    expire_in: 10 week
+
+bandit-check:
+  # A Docker image with python:3.9 installed.
+  image: python:3.11-alpine
+  stage: bandit
+  needs:
+    - job: defectdojo_create_engagement
+      artifacts: true
+  variables:
+    DEFECTDOJO_ENGAGEMENTID: ${ENGAGEMENTID}
+  before_script: 
+    - apk add tzdata
+    - apk add jq
+    - apk add curl 
+    - pip install bandit 
+  script:
+    - bandit --format json --output bandit-findings.json -r . || true
+    - "curl -X POST ''${DEFECTDOJO_URL}'/import-scan/' -H 'accept: application/json' -H 'Content-Type: multipart/form-data' --header 'Authorization: Token '${DEFECTDOJO_TOKEN}'' -F 'minimum_severity=Info' -F 'active=true' -F 'verified=true' -F 'scan_type=Bandit Scan' -F 'product_name='${_DEFECTDOJO_PRODUCT_NAME}'' -F 'engagement_name='#${CI_PIPELINE_ID}'' -F 'engagement='${DEFECTDOJO_ENGAGEMENTID}'' -F 'close_old_findings='${DEFECTDOJO_SCAN_CLOSE_OLD_FINDINGS}'' -F 'file=@bandit-findings.json;type=application/json' -F 'close_old_findings_product_scope='${DEFECTDOJO_SCAN_CLOSE_OLD_FINDINGS}'' -F 'push_to_jira=false' -F 'create_finding_groups_for_all_findings=true'"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /defectdojo/i'
+      allow_failure: true
+    - if: '$CI_COMMIT_MESSAGE =~ /merge branch/i'
+      allow_failure: true
+  artifacts:
+    # reports:
+    #   sast: gl-sast-report.json
+    paths:
+      - bandit-findings.json
+    expire_in: 10 week
+
+dependency-check:
+  # A Docker image with python:3.9 installed.
+  stage: dependencycheck
+  needs:
+    - job: defectdojo_create_engagement
+      artifacts: true
+  image:
+      name: owasp/dependency-check
+      entrypoint: [""]
+#    before_script:
+#        - mkdir data
+#        - mkdir dependency-check
+  variables:
+    DEFECTDOJO_ENGAGEMENTID: ${ENGAGEMENTID}
+  before_script: 
+    - mkdir data
+  script:
+    - /usr/share/dependency-check/bin/dependency-check.sh --project Test --out data/ --scan . --format XML --prettyPrint --enableExperimental 	|| true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /defectdojo/i'
+      when: manual
+      allow_failure: true
+    - if: '$CI_COMMIT_MESSAGE =~ /merge branch/i'
+      when: manual
+      allow_failure: true
+  artifacts:
+    # reports:
+    #   sast: gl-sast-report.json
+    paths:
+      - data/*
+    expire_in: 10 week
+
+dependency-check-publish:
+  stage: dependencycheck
+  image: alpine
+  needs:
+    - job: dependency-check
+      artifacts: true
+  variables:
+    DEFECTDOJO_ENGAGEMENTID: ${ENGAGEMENTID}
+  before_script: 
+    - apk add tzdata
+    - apk add jq
+    - apk add curl
+  script:
+    - "curl -X POST ''${DEFECTDOJO_URL}'/import-scan/' -H 'accept: application/json' -H 'Content-Type: multipart/form-data' --header 'Authorization: Token '${DEFECTDOJO_TOKEN}'' -F 'minimum_severity=Info' -F 'active=true' -F 'verified=true' -F 'scan_type=Dependency Check Scan' -F 'product_name='${_DEFECTDOJO_PRODUCT_NAME}'' -F 'engagement_name='#${CI_PIPELINE_ID}'' -F 'engagement='${DEFECTDOJO_ENGAGEMENTID}'' -F 'close_old_findings='${DEFECTDOJO_SCAN_CLOSE_OLD_FINDINGS}'' -F 'file=@data/dependency-check-report.xml;type=application/xml' -F 'close_old_findings_product_scope='${DEFECTDOJO_SCAN_CLOSE_OLD_FINDINGS}'' -F 'push_to_jira=false' -F 'create_finding_groups_for_all_findings=true'"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /defectdojo/i'
+      when: manual
+      allow_failure: true
+    - if: '$CI_COMMIT_MESSAGE =~ /merge branch/i'
+      when: manual
+      allow_failure: true
+
+python_sbom:
+  image: python:3.12
+  stage: cyclonedx-sbom
+  before_script:
+    - python3 -m venv myenv
+    - source myenv/bin/activate
+    - pip install cyclonedx-bom==4.5.0
+    - pip install -r requirements.txt
+  script:
+    - python3 -m cyclonedx_py environment -o bom.json
+  rules:
+    # Scan mainline (default) branches and report all findings.
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /sbom/i'
+      allow_failure: true
+    - if: '$CI_COMMIT_MESSAGE =~ /merge branch/i'
+      allow_failure: true
+  artifacts:
+    paths:
+      - bom.json
+
+sbom-publish:
+  image: alpine
+  stage: cyclonedx-sbom
+  needs:
+    - job: python_sbom
+      artifacts: true
+  before_script:
+    - apk add tzdata
+    - apk add jq
+    - apk add curl
+    - echo $SBOM_URL
+    - echo $SBOM_KEY
+    - echo $SBOM_PROJECT
+  script:
+    - 'curl -k -X POST "${SBOM_URL}" -H "Content-Type: multipart/form-data" -H "X-API-Key: ${SBOM_KEY}" -F "projectName=${SBOM_PROJECT}" -F "projectVersion=1.1" -F "bom=@bom.json"'
+  rules:
+    # Scan mainline (default) branches and report all findings.
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /sbom/i'
+      allow_failure: true
+    - if: '$CI_COMMIT_MESSAGE =~ /merge branch/i'
+      allow_failure: true

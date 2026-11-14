@@ -1,0 +1,14 @@
+{
+  "sbom-product-name":  "{repo}_{run_id}",
+  "sbom-product-owner": "Shivananda Reddy",
+  "sbom-offer-name":    "eba-def-util-vpncertificateapi",
+  "project-version":    "1.0",
+  "picasso_id":          "",
+  "picasso_offer_name":  "",
+  "picasso_release_id":  "",
+  "bu":                 "",
+  "lob":                "",
+  "security-advisor":   "",
+  "submitter-email":    "",
+  "triage-status":      "False"
+}

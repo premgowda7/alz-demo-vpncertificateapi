@@ -1,0 +1,125 @@
+version: '3'
+
+services:
+  vpn_certificate_api:
+    stdin_open: true
+    tty: true
+    build: .
+    restart: always
+    image: vpn_certificate_api:latest
+    container_name: vpn_certificate_api
+    depends_on:
+      - packet_filter
+    working_dir: /root/src/vpn_certificate_api
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        #sleep infinity
+        python3 app.py
+    networks:
+      zenatix-docker:
+    environment:
+      - TUN_IP=${TUN_IP}
+    # env_file:
+    #   - Docker/env/${VPN_CERTIFICATE_API_REGION}.env
+    ports:
+      - "${TUN_IP}:5000:5000"
+    volumes:
+      - .:/root/src/vpn_certificate_api/
+      - /etc/openvpn/easy-rsa/:/etc/openvpn/easy-rsa/
+      - /etc/openvpn/ccd/:/etc/openvpn/ccd/
+      - /etc/openvpn/openvpn-status.log:/etc/openvpn/openvpn-status.log
+
+  vpn_certificate_api_dev:
+    stdin_open: true
+    tty: true
+    build: .
+    restart: always
+    image: vpn_certificate_api:latest
+    container_name: vpn_certificate_api_dev
+    working_dir: /root/src/vpn_certificate_api
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        #sleep infinity
+        python3 app_dev.py
+    networks:
+      zenatix-docker:
+    environment:
+      - TUN_IP=${TUN_IP}
+    ports:
+      - "6969:6969"
+    volumes:
+      - .:/root/src/vpn_certificate_api/
+      - /etc/openvpn/easy-rsa/:/etc/openvpn/easy-rsa/
+      - /etc/openvpn/ccd/:/etc/openvpn/ccd/
+      - /etc/openvpn/openvpn-status.log:/etc/openvpn/openvpn-status.log
+
+  packet_filter:
+    stdin_open: true
+    tty: true
+    build:
+      context: .
+      dockerfile: Dockerfile.packet_filter
+    restart: always
+    image: vpn_packet_filter:latest
+    container_name: packet_filter
+    # NFQUEUE must run in the same network namespace as the iptables rules
+    # created by packet_filter.sh (host), and needs NET_ADMIN/NET_RAW instead
+    # of full privileged mode.
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    depends_on:
+      - packet_filter_autoheal
+    working_dir: /app
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        python3 -m uvicorn packet_filter.main:app --host "$$API_HOST" --port "$$API_PORT"
+    environment:
+      - NFQUEUE_NUM=${NFQUEUE_NUM:-5}
+      - WORKER_POOL_SIZE=${WORKER_POOL_SIZE:-8}
+      - INTERNAL_QUEUE_MAXSIZE=${INTERNAL_QUEUE_MAXSIZE:-20000}
+      - PACKET_FILTER_DB_PATH=/data/packet_filter.db
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_COLOR=${LOG_COLOR:-false}
+      - API_HOST=${PACKET_FILTER_API_HOST:-0.0.0.0}
+      - API_PORT=${PACKET_FILTER_API_PORT:-8000}
+      - TUN_IP=${TUN_IP}
+    volumes:
+      - .:/app/
+      - packet_filter_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://${TUN_IP}:${PACKET_FILTER_API_PORT:-8000}/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "autoheal=true"
+
+  # Docker's own restart policy only reacts to container exit, not to a 
+  # failing healthcheck, so this watches for containers marked "unhealthy"
+  # (via the autoheal=true label above) and restarts them.
+  packet_filter_autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: packet_filter_autoheal
+    restart: always
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=10
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+networks:
+  zenatix-docker:
+    external:
+      name: zenatix-docker
+
+volumes:
+  packet_filter_data:
